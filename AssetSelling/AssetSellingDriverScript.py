@@ -12,25 +12,47 @@ from copy import copy
 import math
 
 if __name__ == "__main__":
-    # read in policy parameters from an Excel spreadsheet, "asset_selling_policy_parameters.xlsx"
-    sheet1 = pd.read_excel("asset_selling_policy_parameters.xlsx", sheet_name="Sheet1")
-    params = zip(sheet1['param1'], sheet1['param2'])
-    param_list = list(params)
-    sheet2 = pd.read_excel("asset_selling_policy_parameters.xlsx", sheet_name="Sheet2")
-    sheet3 = pd.read_excel("asset_selling_policy_parameters.xlsx", sheet_name="Sheet3")
-    biasdf = pd.read_excel("asset_selling_policy_parameters.xlsx", sheet_name="Sheet4")
-    
-    
-   
-    policy_selected = sheet3['Policy'][0]
-    T = sheet3['TimeHorizon'][0]
-    initPrice = sheet3['InitialPrice'][0]
-    initBias = sheet3['InitialBias'][0]
-    
-    exog_params = {'UpStep':sheet3['UpStep'][0],'DownStep':sheet3['DownStep'][0],'Variance':sheet3['Variance'][0],'biasdf':biasdf}
-   
-    nIterations = sheet3['Iterations'][0] 
-    printStep = sheet3['PrintStep'][0]
+    # Excel 없이 실행되도록 예시 변수 선언
+    policy_selected = 'full_grid'  # 'sell_low' | 'high_low' | 'track' | 'time_series' | 'full_grid'
+    T = 20
+    initPrice = 16
+    initBias = 'Neutral'  # 'Up' | 'Neutral' | 'Down'
+
+    # 외생 파라미터 (예시값)
+    UpStep = 1.0
+    DownStep = -1.0
+    Variance = 2.0
+
+    # time_series full_grid용 범위 (예시값)
+    theta_min = 0.0
+    theta_max = 100.0
+    theta_step = 0.1
+
+    # 정책 파라미터 리스트 (예시값)
+    # index 0: sell_low(lower_limit, placeholder)
+    # index 1: high_low(lower_limit, upper_limit)
+    # index 2: track(track_signal, alpha)
+    # index 3: time_series(theta, placeholder)
+    param_list = [
+        (80.0, 0.0),
+        (70.0, 130.0),
+        (5.0, 0.3),
+        (2.0, 0.0) # time_series(theta, placeholder) -> 우리 정책에서 얼마만큼의 변동까지 hold 할건지 결정하는는 theta 값
+    ]
+
+    # 편향 전이 확률표 (예시값): 첫 열을 인덱스로 사용하고, 나머지 열은 Up/Neutral/Down 확률
+    biasdf = pd.DataFrame({
+        'State': ['Up', 'Neutral', 'Down'],
+        'Up': [0.9, 0.1, 0],
+        'Neutral': [0.2, 0.6, 0.2],
+        'Down': [0.1, 0.1, 0.9]
+    })
+
+    exog_params = {'UpStep': UpStep, 'DownStep': DownStep, 'Variance': Variance, 'biasdf': biasdf}
+
+    # 반복 설정 (예시값)
+    nIterations = 50
+    printStep = 10
     printIterations = [0]
     printIterations.extend(list(reversed(range(nIterations-1,0,-printStep))))  
     
@@ -38,7 +60,7 @@ if __name__ == "__main__":
     print("exog_params ",exog_params)
    
     # initialize the model and the policy
-    policy_names = ['sell_low', 'high_low', 'track']
+    policy_names = ['sell_low', 'high_low', 'track', 'time_series']
     state_names = ['price', 'resource','bias']
     init_state = {'price': initPrice, 'resource': 1,'bias':initBias}
     decision_names = ['sell', 'hold']
@@ -51,12 +73,20 @@ if __name__ == "__main__":
 
 
     # make a policy_info dict object
+    # param_list[3] is expected to hold theta for time_series
+    # Initialize previous prices with initial price for p_{t-1} and p_{t-2}
     policy_info = {'sell_low': param_list[0],
                    'high_low': param_list[1],
                    'track': param_list[2] + (prev_price,)}
+    # Add time_series only if param_list has enough elements
+    if len(param_list) > 3:
+        policy_info['time_series'] = (param_list[3][0], prev_price, prev_price)
+    else:
+        # Default theta=1.0 for time_series if not provided
+        policy_info['time_series'] = (1.0, prev_price, prev_price)
     
     
-    if (not policy_selected =='full_grid'):
+    if (policy_selected != 'full_grid'):
         print("Selected policy {}, time horizon {}, initial price {} and number of iterations {}".format(policy_selected,T,initPrice,nIterations))
         contribution_iterations=[P.run_policy(param_list, policy_info, policy_selected, t) for ite in list(range(nIterations))]
 
@@ -91,20 +121,16 @@ if __name__ == "__main__":
         plt.show()
         
     else:
-        # obtain the theta values to carry out a full grid search
-        grid_search_theta_values = P.grid_search_theta_values(sheet2['low_min'], sheet2['low_max'], sheet2['high_min'], sheet2['high_max'], sheet2['increment_size'])
-        # use those theta values to calculate corresponding contribution values
-        
-        contribution_iterations = [P.vary_theta(param_list, policy_info, "high_low", t, grid_search_theta_values[0]) for ite in list(range(nIterations))]
-        
+        # full grid: time_series 파라미터를 1D 그리드로 탐색
+        num_steps = int(round((theta_max - theta_min) / theta_step)) + 1
+        theta_values = np.linspace(theta_min, theta_max, num_steps)
+        contribution_iterations = [P.vary_theta(param_list, policy_info, 'time_series', t, theta_values) for ite in list(range(nIterations))]
         contribution_iterations_arr = np.array(contribution_iterations)
         cum_sum_contrib = contribution_iterations_arr.cumsum(axis=0)
         nElem = np.arange(1,cum_sum_contrib.shape[0]+1).reshape((cum_sum_contrib.shape[0],1))
         cum_avg_contrib=cum_sum_contrib/nElem
         print("cum_avg_contrib")
         print(cum_avg_contrib)
-    
-        # plot those contribution values on a heat map
-        P.plot_heat_map_many(cum_avg_contrib, grid_search_theta_values[1], grid_search_theta_values[2], printIterations)
+        P.plot_heat_map_time_series(cum_avg_contrib, theta_values, printIterations)
         
         
