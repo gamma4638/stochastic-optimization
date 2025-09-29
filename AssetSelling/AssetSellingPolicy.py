@@ -80,12 +80,10 @@ class AssetSellingPolicy():
 
     def time_series_policy(self, state, info_tuple):
         """
-
-        과제 b) 문제에서 제공되는 정책함수의 코드 구현현
-
-        :param state: namedtuple - the state of the model at a given time
-        :param info_tuple: tuple - (theta, p_tm1, p_tm2)
-        :return: a decision made based on the policy
+        [과제용] 시계열(time_series) 정책 구현
+        - 목적: 현재가가 최근 3시점 가중평균(예상가격)에서 임계치 theta 이상 벗어나면 즉시 매도
+        - 입력: info_tuple = (theta, p_{t-1}, p_{t-2})
+        - 출력: 매도/보유 의사결정 딕셔너리
         """
         theta = info_tuple[0]
         p_tm1 = info_tuple[1]
@@ -98,13 +96,9 @@ class AssetSellingPolicy():
 
     def run_policy(self, param_list, policy_info, policy, time):
         """
-        this function runs the model with a selected policy
-
-        :param param_list: list of policy parameters in tuple form (read in from an Excel spreadsheet)
-        :param policy_info: dict - dictionary of policies and their associated parameters
-        :param policy: str - the name of the chosen policy
-        :param time: float - start time
-        :return: float - calculated contribution
+        [공통] 선택한 정책으로 1회 시뮬레이션을 수행하고 총 기여도(수익)를 반환
+        - time_series인 경우, 각 스텝에서 과거가격(p_{t-1}, p_{t-2})을 갱신하여 다음 스텝에 사용
+        - 만기 직전 시점(t=T-1)에는 강제 매도
         """
         model_copy = copy(self.model)
 
@@ -135,7 +129,7 @@ class AssetSellingPolicy():
             model_copy.step(x)
             # update track policy info with new previous price
             policy_info.update({'track': param_list[2] + (prev_price,)})
-            # update time_series policy info shifting previous prices
+            # [과제용] time_series의 과거가격 메모리 이동: (theta, p_{t-1}, p_{t-2}) ← (theta, p_t, p_{t-1})
             if 'time_series' in self.policy_names and hasattr(p, 'time_series'):
                 theta = p.time_series[0]
                 prev1_old = p.time_series[1]
@@ -200,20 +194,15 @@ class AssetSellingPolicy():
 
     def vary_theta(self, param_list, policy_info, policy, time, theta_values):
         """
-        this function calculates the contribution for each theta value in a list
-
-        :param param_list: list of policy parameters in tuple form (read in from an Excel spreadsheet)
-        :param policy_info: dict - dictionary of policies and their associated parameters
-        :param policy: str - the name of the chosen policy
-        :param time: float - start time
-        :param theta_values: list - list of all possible thetas to be tested
-        :return: list - list of contribution values corresponding to each theta
+        [공통] theta 그리드의 각 값에 대해 기여도(1회 시뮬레이션)를 계산
+        - time_series: 1차원 theta 스윕
+        - high_low: (low, high) 2차원 스윕
         """
         contribution_values = []
 
         # Support both high_low (2D theta tuples) and time_series (1D theta scalars)
         if policy == "time_series":
-            # establish initial previous prices
+            # [과제용] time_series: 시뮬레이션 시작 시 p_{t-1}, p_{t-2} 초기값 설정
             if 'time_series' in policy_info and len(policy_info['time_series']) >= 2:
                 init_p_tm1 = policy_info['time_series'][1]
                 init_p_tm2 = policy_info['time_series'][2] if len(policy_info['time_series']) >= 3 else init_p_tm1
@@ -341,12 +330,9 @@ class AssetSellingPolicy():
 
     def grid_search_theta_values_1d(self, theta_min, theta_max, increment_size):
         """
-        Builds a 1D grid of theta values for policies with a single parameter (e.g., time_series)
-
-        :param theta_min: float or pandas.Series with one value
-        :param theta_max: float or pandas.Series with one value
-        :param increment_size: float or pandas.Series with one value
-        :return: numpy.ndarray of theta values
+        [과제용] 단일 파라미터 정책(time_series)용 1차원 theta 그리드 생성
+        - 입력: 최소/최대/증분
+        - 출력: theta 값 배열
         """
         # allow passing as Series from Excel
         if hasattr(theta_min, 'iloc'):
@@ -362,16 +348,12 @@ class AssetSellingPolicy():
 
     def vary_theta_time_series(self, param_list, policy_info, time, theta_values):
         """
-        Calculates contributions for each theta in 1D list for the time_series policy
-
-        :param param_list: list - not used directly, kept for signature consistency
-        :param policy_info: dict - includes key 'time_series': (theta, p_tm1, p_tm2)
-        :param time: float - start time
-        :param theta_values: list/ndarray - theta candidates
-        :return: list of contributions corresponding to each theta
+        [과제용] time_series 정책: 1차원 theta 그리드 각각에 대한 기여도 계산
+        - 입력: (theta, p_{t-1}, p_{t-2}) 초기화 포함
+        - 출력: 각 theta의 기여도 리스트
         """
         contribution_values = []
-        # initial previous prices
+        # [과제용] 시뮬레이션 시작 시 과거가격 초기화
         if 'time_series' in policy_info and len(policy_info['time_series']) >= 2:
             init_p_tm1 = policy_info['time_series'][1]
             init_p_tm2 = policy_info['time_series'][2] if len(policy_info['time_series']) >= 3 else init_p_tm1
@@ -391,13 +373,9 @@ class AssetSellingPolicy():
 
     def plot_heat_map_time_series(self, cum_avg_contrib, theta_values, iterations):
         """
-        Plots contribution vs. theta for the time_series policy.
-
-        :param cum_avg_contrib: 2D array-like of shape (nIterations, nTheta)
-                                 cumulative average contributions across iterations
-        :param theta_values: 1D array-like of theta grid values
-        :param iterations: list of iteration indices to optionally overlay (can be empty)
-        :return: True when plotting completes
+        [과제용] time_series 정책의 "objective(contribution) vs. theta" 선 그래프
+        - 입력: cum_avg_contrib(반복×theta 누적평균), theta_values, iterations(겹쳐 그릴 반복 인덱스)
+        - 출력: 최종 평균 곡선 + 선택 반복 곡선 + 최적 theta 표시
         """
         contributions = np.array(cum_avg_contrib)
         thetas = np.array(theta_values)
@@ -415,13 +393,13 @@ class AssetSellingPolicy():
         fig, ax = plt.subplots()
         ax.plot(thetas, final_avg, 'o-', label='Final average')
 
-        # Optionally overlay selected iterations
+        # 선택된 반복 인덱스를 점선으로 함께 표시(옵션)
         if iterations is not None:
             for ite in iterations:
                 if isinstance(ite, (int, np.integer)) and 0 <= ite < contributions.shape[0]:
                     ax.plot(thetas, contributions[ite], '--', alpha=0.35, label=f'Iteration {ite}')
 
-        # Mark best theta on final average curve
+        # 최적 theta(최종 평균 최대)를 빨간 점으로 표시
         if final_avg.size > 0:
             best_index = int(np.nanargmax(final_avg))
             ax.scatter([thetas[best_index]], [final_avg[best_index]], color='red', zorder=5,

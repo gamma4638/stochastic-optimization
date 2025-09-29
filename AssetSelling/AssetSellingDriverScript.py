@@ -18,12 +18,12 @@ if __name__ == "__main__":
     initPrice = 16
     initBias = 'Neutral'  # 'Up' | 'Neutral' | 'Down'
 
-    # 외생 파라미터 (예시값)
+    # 외생 파라미터
     UpStep = 1.0
     DownStep = -1.0
     Variance = 2.0
 
-    # time_series full_grid용 범위 (예시값)
+    # [과제용] time_series 정책의 theta를 1차원 그리드로 스윕하기 위한 범위
     theta_min = 0.0
     theta_max = 100.0
     theta_step = 0.1
@@ -33,6 +33,7 @@ if __name__ == "__main__":
     # index 1: high_low(lower_limit, upper_limit)
     # index 2: track(track_signal, alpha)
     # index 3: time_series(theta, placeholder)
+    #   [과제용] theta는 예상가격으로부터 허용 가능한 이탈 폭(임계치)
     param_list = [
         (80.0, 0.0),
         (70.0, 130.0),
@@ -40,7 +41,7 @@ if __name__ == "__main__":
         (2.0, 0.0) # time_series(theta, placeholder) -> 우리 정책에서 얼마만큼의 변동까지 hold 할건지 결정하는는 theta 값
     ]
 
-    # 편향 전이 확률표 (예시값): 첫 열을 인덱스로 사용하고, 나머지 열은 Up/Neutral/Down 확률
+    # 편향 전이 확률표 : 첫 열을 인덱스로 사용하고, 나머지 열은 Up/Neutral/Down 확률
     biasdf = pd.DataFrame({
         'State': ['Up', 'Neutral', 'Down'],
         'Up': [0.9, 0.1, 0],
@@ -72,9 +73,9 @@ if __name__ == "__main__":
     prev_price = init_state['price']
 
 
-    # make a policy_info dict object
-    # param_list[3] is expected to hold theta for time_series
-    # Initialize previous prices with initial price for p_{t-1} and p_{t-2}
+    # [과제용] time_series 실행을 위한 초기 policy_info 구성
+    # - time_series: (theta, p_{t-1}, p_{t-2}) 형태로 전달
+    # - 초기에는 p_{t-1}=p_{t-2}=초기가격으로 설정
     policy_info = {'sell_low': param_list[0],
                    'high_low': param_list[1],
                    'track': param_list[2] + (prev_price,)}
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     if len(param_list) > 3:
         policy_info['time_series'] = (param_list[3][0], prev_price, prev_price)
     else:
-        # Default theta=1.0 for time_series if not provided
+        # [과제용] theta 미지정 시 기본값 사용
         policy_info['time_series'] = (1.0, prev_price, prev_price)
     
     
@@ -121,7 +122,8 @@ if __name__ == "__main__":
         plt.show()
         
     else:
-        # full grid: time_series 파라미터를 1D 그리드로 탐색
+        # [과제용] full_grid: time_series의 theta를 1차원 그리드로 탐색 후
+        # cum_avg_contrib의 마지막 행을 이용해 "contribution vs. theta"를 그리는 함수로 전달
         num_steps = int(round((theta_max - theta_min) / theta_step)) + 1
         theta_values = np.linspace(theta_min, theta_max, num_steps)
         contribution_iterations = [P.vary_theta(param_list, policy_info, 'time_series', t, theta_values) for ite in list(range(nIterations))]
