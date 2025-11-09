@@ -34,7 +34,13 @@ class MedicalDecisionDiabetesModel():
 
         self.init_args = {seed: seed}
         self.prng = np.random.RandomState(seed)
-        self.init_state = {x:[S0.loc[x, 'mu_0'],Beta(S0.loc[x, 'sigma_0']),0] for x in x_names }
+        
+        # Support both DataFrame and dict parameter formats
+        if isinstance(S0, pd.DataFrame):
+            self.init_state = {x:[S0.loc[x, 'mu_0'],Beta(S0.loc[x, 'sigma_0']),0] for x in x_names }
+        else:  # dict format
+            self.init_state = {x:[S0[x]['mu_0'],Beta(S0[x]['sigma_0']),0] for x in x_names }
+        
         self.state_names = state_names
         self.x_names = x_names
         self.State = namedtuple('State', state_names)
@@ -42,19 +48,35 @@ class MedicalDecisionDiabetesModel():
         self.Decision = namedtuple('Decision', x_names)
         self.obj = 0.0
         self.obj_sum = 0.0
-        self.sigma_w = additional_params.loc['sigma_w', 0]
+        
+        # Support both DataFrame and dict parameter formats
+        if isinstance(additional_params, pd.DataFrame):
+            self.sigma_w = additional_params.loc['sigma_w', 0]
+            self.truth_type = additional_params.loc['truth_type', 0]
+        else:  # dict format
+            self.sigma_w = additional_params['sigma_w']
+            self.truth_type = additional_params['truth_type']
+            
         self.truth_params_dict = {} #changed later
-        self.truth_type = additional_params.loc['truth_type', 0]
         self.mu = {} #updated using "exog_info_sample_mu" at the beginning of each sample path 
         self.t = 0 # time counter (in months)
 
 
         if self.truth_type == 'fixed_uniform':
-            self.truth_params_dict = {x:[S0.loc[x, 'mu_fixed'],S0.loc[x, 'fixed_uniform_a'],S0.loc[x, 'fixed_uniform_b']] for x in self.x_names }
+            if isinstance(S0, pd.DataFrame):
+                self.truth_params_dict = {x:[S0.loc[x, 'mu_fixed'],S0.loc[x, 'fixed_uniform_a'],S0.loc[x, 'fixed_uniform_b']] for x in self.x_names }
+            else:
+                self.truth_params_dict = {x:[S0[x]['mu_fixed'],S0[x]['fixed_uniform_a'],S0[x]['fixed_uniform_b']] for x in self.x_names }
         elif self.truth_type == 'prior_uniform':
-            self.truth_params_dict = {x:[S0.loc[x, 'mu_0'],S0.loc[x, 'prior_mult_a'],S0.loc[x, 'prior_mult_b']] for x in self.x_names }
+            if isinstance(S0, pd.DataFrame):
+                self.truth_params_dict = {x:[S0.loc[x, 'mu_0'],S0.loc[x, 'prior_mult_a'],S0.loc[x, 'prior_mult_b']] for x in self.x_names }
+            else:
+                self.truth_params_dict = {x:[S0[x]['mu_0'],S0[x]['prior_mult_a'],S0[x]['prior_mult_b']] for x in self.x_names }
         else:
-            self.truth_params_dict = {x:[S0.loc[x, 'mu_truth'],S0.loc[x, 'sigma_truth'],0] for x in self.x_names }
+            if isinstance(S0, pd.DataFrame):
+                self.truth_params_dict = {x:[S0.loc[x, 'mu_truth'],S0.loc[x, 'sigma_truth'],0] for x in self.x_names }
+            else:
+                self.truth_params_dict = {x:[S0[x]['mu_truth'],S0[x]['sigma_truth'],0] for x in self.x_names }
 
         
 

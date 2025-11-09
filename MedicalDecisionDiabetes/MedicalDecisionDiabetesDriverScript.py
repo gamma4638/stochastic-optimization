@@ -47,23 +47,63 @@ if __name__ == "__main__":
     policy_names = ['UCB', 'IE', 'PureExploitation', 'PureExploration']
 
     
-    #reading parameter file and initializing variables
-    file = 'MDDMparameters.xlsx'
-    S0 = pd.read_excel(file, sheet_name = 'parameters1')
-    additional_params = pd.read_excel(file, sheet_name = 'parameters2')
+    # 엑셀파일 대신 직접 입력으로 수정
+    S0 = {
+        'M': {
+            'mu_0': 0.32, 'sigma_0': 0.12, 
+            'mu_truth': 0.25, 'sigma_truth': 0,
+            'mu_fixed': 0.3, 'fixed_uniform_a': -0.15, 'fixed_uniform_b': 0.15,
+            'prior_mult_a': -0.5, 'prior_mult_b': 0.5
+        },
+        'Sens': {
+            'mu_0': 0.28, 'sigma_0': 0.09,
+            'mu_truth': 0.30, 'sigma_truth': 0,
+            'mu_fixed': 0.3, 'fixed_uniform_a': -0.15, 'fixed_uniform_b': 0.15,
+            'prior_mult_a': -0.5, 'prior_mult_b': 0.5
+        },
+        'Secr': {
+            'mu_0': 0.30, 'sigma_0': 0.17,
+            'mu_truth': 0.28, 'sigma_truth': 0,
+            'mu_fixed': 0.3, 'fixed_uniform_a': -0.15, 'fixed_uniform_b': 0.15,
+            'prior_mult_a': -0.5, 'prior_mult_b': 0.5
+        },
+        'AGI': {
+            'mu_0': 0.26, 'sigma_0': 0.15,
+            'mu_truth': 0.34, 'sigma_truth': 0,
+            'mu_fixed': 0.3, 'fixed_uniform_a': -0.15, 'fixed_uniform_b': 0.15,
+            'prior_mult_a': -0.5, 'prior_mult_b': 0.5
+        },
+        'PA': {
+            'mu_0': 0.21, 'sigma_0': 0.11,
+            'mu_truth': 0.24, 'sigma_truth': 0,
+            'mu_fixed': 0.3, 'fixed_uniform_a': -0.15, 'fixed_uniform_b': 0.15,
+            'prior_mult_a': -0.5, 'prior_mult_b': 0.5
+        }
+    }
+    
+    additional_params = {
+        'sigma_w': 5.0,
+        'N': 20,
+        'L': 1000,
+        'theta_start': 0,
+        'theta_end': 2.1,
+        'increment': 0.2,
+        'truth_type': 'fixed_uniform',
+        'policy': 'IE'
+    }
     
     
 
-    policy_str = additional_params.loc['policy', 0]
+    policy_str = additional_params['policy']
     policy_list = policy_str.split()
     
 
     # each time step is 1 month.
-    t_stop = int(additional_params.loc['N', 0]) # number of times we test the drugs
-    L = int(additional_params.loc['L', 0]) # number of samples
-    theta_range_1 = np.arange(additional_params.loc['theta_start', 0],\
-                              additional_params.loc['theta_end', 0],\
-                              additional_params.loc['increment', 0])
+    t_stop = int(additional_params['N']) # number of times we test the drugs
+    L = int(additional_params['L']) # number of samples
+    theta_range_1 = np.arange(additional_params['theta_start'],\
+                              additional_params['theta_end'],\
+                              additional_params['increment'])
 
     # dictionaries to store the stats for different values of theta
     theta_obj = {p:[] for p in policy_names}
@@ -236,7 +276,7 @@ if __name__ == "__main__":
 # =============================================================================
     
     l = len(theta_range_1)
-    inc = additional_params.loc['increment', 0] 
+    inc = additional_params['increment'] 
 
 
     fig1, axsubs = plt.subplots(1,2)
