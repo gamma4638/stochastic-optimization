@@ -15,11 +15,19 @@ if __name__ == "__main__":
 
 
     #reading parameter file and initializing variables
-    file = 'Parameters.xlsx'
-    parDf = pd.read_excel(file, sheet_name = 'parameters')
-    parDict=parDf.set_index('Index').T.to_dict('list')
+    #file = 'Parameters.xlsx'
+    #parDf = pd.read_excel(file, sheet_name = 'parameters')
+    #parDict=parDf.set_index('Index').T.to_dict('list')
     print("Starting adaptive stochastic shortest path with parameters")
-    params = {key:v for key, value in parDict.items() for v in value}
+    params = {
+        'nNodes': 150,
+        'probEdge': 2,
+        'LO_UPPER_BOUND': 10,
+        'HI_UPPER_BOUND': 20,
+        'nIterations': 100,
+        'stepsize_rule': 'Declining',
+        'theta_set': '1 5 10 20 50'
+    }
 
 
 
@@ -35,7 +43,7 @@ if __name__ == "__main__":
 
     # create the model, given the above policy
     M = StaticModel(state_names, decision_names,  params)
-    policy_names = ['PureExploitation']
+    policy_names = ['PureExploitation'] #exploration 없음
     P = Policy(M, policy_names)
     
     theta_list = M.init_args['theta_set'].split()
@@ -43,7 +51,7 @@ if __name__ == "__main__":
     vbar_along_iterations = {theta:[] for theta in theta_list}
 
 
-    for theta in theta_list:
+    for theta in theta_list: #theta_list = [1, 5, 10, 20, 50] 에 대해
         
         model = copy(M)
         model.theta_step = float(theta)
@@ -51,7 +59,7 @@ if __name__ == "__main__":
         
         print("************Starting iterations for theta {}".format(model.theta_step))
 
-        for ite in list(range(model.init_args['nIterations'])):
+        for ite in list(range(model.init_args['nIterations'])): #nIterations = 100 반복실행
 
             
             model.obj = 0 
