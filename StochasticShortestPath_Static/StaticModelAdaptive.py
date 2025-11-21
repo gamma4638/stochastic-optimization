@@ -120,7 +120,7 @@ class StaticModel():
         if self.init_args['stepsize_rule']=='Constant':
             return self.theta_step
         else:
-            return self.theta_step  
+            return self.theta_step/(self.theta_step + self.n - 1)  
 
     
 
@@ -214,7 +214,7 @@ def randomgraphChoice(prng, n, p,LO_UPPER_BOUND,HI_UPPER_BOUND):
     g = StochasticGraph()
     for i in range(n):
         g.add_node(str(i))
-    for i in range(n-p-2):
+    for i in range(n-p-2): #? 여기가 문제인가? 
         edge_set = list(prng.choice(np.arange(0,n-1), p, replace=False))
         for add_neighbor in list(range(1)):
             neighbor = min(i+add_neighbor+1,n-1)
