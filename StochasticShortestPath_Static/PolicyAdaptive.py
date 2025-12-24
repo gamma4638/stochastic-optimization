@@ -29,6 +29,9 @@ class Policy():
 
         costs = {j:M.state.CurrentNodeLinksCost[j] + M.V_t[j] for j in M.g.edges[i]}
 
+        if not costs:
+            raise ValueError(f"Dead end reached at node {i}. No outgoing edges available.")
+
         optimal_decision = min(costs, key=costs.get)
         
         return optimal_decision, costs[optimal_decision]

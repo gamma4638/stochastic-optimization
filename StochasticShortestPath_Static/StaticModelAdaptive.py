@@ -119,7 +119,7 @@ class StaticModel():
     def alpha(self):
         if self.init_args['stepsize_rule']=='Constant':
             return self.theta_step
-        else:
+        elif self.init_args['stepsize_rule']=='Declining':
             return self.theta_step/(self.theta_step + self.n - 1)  
 
     
